@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import math
+from pprint import pprint
 import torch
 
 ## TODO: Implement Batching when trianing. Dink dit sal help vir die slegte results in die SIN grafiek approximation
@@ -30,7 +31,8 @@ class SimpleMLP(nn.Module):
             nn.ReLU(),
             nn.Linear(100, 10),
             nn.ReLU(),
-            nn.Linear(10, 1)   
+            nn.Linear(10, 1),
+            nn.Tanh()
         )
 
     def forward(self, x):
@@ -99,39 +101,58 @@ def train_and_visualize_loss(train_steps,speed, batch_size):
     plt.show()
 
 
-def visualize_training(train_steps,speed, batch_size):
+def visualize_training(train_steps,speed,batch_size,trange):
     fig, ax = plt.subplots()
 
-    y_pred = model(x_tensor).detach().numpy()
 
-    line2, = ax.plot(x,y)
-    line1, = ax.plot([], [])
+    x_v = np.arange(trange[0], trange[1], 0.01)
+    y_v = np.sin(x_v)
+    x_v_t = torch.tensor(x_v, dtype=torch.float32).view(-1,1)
+    y_pred = model(x_v_t).detach().numpy()
+
+    line1, = ax.plot(x_v,y_v)
+    line2, = ax.plot([], [])
 
     def update(frame):
         train(frame, train_steps, batch_size)
 
-        y_pred = model(x_tensor).detach().numpy()
+        y_pred = model(x_v_t).detach().numpy()
         
-        line1.set_data(x, y_pred)
+        line2.set_data(x_v_t, y_pred)
         ax.relim()       
         ax.autoscale_view()
-        ax.set_ylim(-1,1)
+        #ax.set_ylim(-5,5)
 
     ani = FuncAnimation(fig, update, frames=train_steps,interval=speed,repeat=False)
     plt.show()
+
+# Visualize graph
+def vis_graph(x_start,x_end):
+    x = np.arange(x_start, x_end, 0.01)
+    x_t = torch.tensor(x, dtype=torch.float32).view(-1,1)
+    y = model(x_t).detach().numpy()
+    fig, ax = plt.subplots()
+    ax.plot(x,y)
+    ax.set_ylim(-10000,10000)
+    ax.set_xlim(-10000,10000)
+    plt.show()
+
+
+
+
 
 
 
 epochs = 1000
 speed = 0
-shuffle = False 
+shuffle = True 
 learning_rate = 0.001
 batch_amount = 15
 
-training_range = (0, 7, 0.1)
+training_range = (-50, 50, 0.01)
 
 
-seed = 42
+seed = 1 
 torch.manual_seed(seed)
 np.random.seed(seed)
 
@@ -147,7 +168,9 @@ y_tensor = torch.tensor(y, dtype=torch.float32).view(-1, 1)
 batch_size = round(x_tensor.size(0) / batch_amount)
 
 train_and_visualize_loss(epochs, speed, batch_size)
-visualize_training(epochs, speed, batch_size)
+visualize_training(epochs, speed, batch_size,training_range) 
+#visualize_training(epochs, speed, batch_size, (-1000,1000))
+vis_graph(-10000, 10000)
 
 
 
@@ -159,33 +182,41 @@ visualize_training(epochs, speed, batch_size)
 
 
 
+# setup
+def vis_weights(train_steps, speed, batch_size):
+    axrange = (-5,5)
+    fig, ax = plt.subplots()
+    ax.set_xlim(axrange[0], axrange[1])
+    ax.set_ylim(axrange[0], axrange[1])
+    plt.axhline(0, color='black', linewidth=1.5)  
+    plt.axvline(0, color='black', linewidth=1.5)
+
+
+    x_t = np.arange(axrange[0], axrange[1], 0.1)
+    x_tt = torch.tensor(x_t, dtype=torch.float32).view(-1,1)
+
+    weights = model.layers[-1].weight.data
+    bias = model.layers[-1].bias.data
+    xws = x_tt @ weights 
+
+    lines = [ax.plot([], [])[0] for _ in range(xws.shape[1])]  # Create 10 empty line objects
+
+    def update(frame):
+        train(frame, train_steps, batch_size)
+
+        weights = model.layers[-1].weight.data
+        bias = model.layers[-1].bias.data
+        xws = x_tt @ weights 
+
+        for i, line in enumerate(lines):
+            line.set_data(x_t, xws[:,i] + bias)  
+        return lines
+
+    ani = FuncAnimation(fig, update, frames=train_steps, interval=speed, blit=True, repeat=False)
+
+    plt.show()
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#epochs = 1 
-#train_normal(epochs)
-
-#y_pred = model(x_tensor).detach().numpy()
-
-#plt.plot(x, y, label='True sin(x)')
-#plt.plot(x, y_pred, label='MLP Prediction')
-#plt.legend()
-#plt.show()
+vis_weights(epochs, speed, batch_size) 
