@@ -65,8 +65,6 @@ plt.show()
 
 
 def sample(iterations,W):
-    # P, N = create_bigram_probability_distribution()
-
     prob_w = torch.exp(W) 
     prob_w = prob_w / prob_w.sum(dim=1, keepdim=True)
     names = []
