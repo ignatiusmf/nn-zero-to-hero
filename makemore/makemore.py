@@ -1,11 +1,25 @@
 import warnings
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from pprint import pprint
 import torch
 import torch.nn.functional as F
 
-g = torch.Generator().manual_seed(2)
+########################################################################### SETUP
+torch.manual_seed(0)
+
+start_time = time.time()
+
+if torch.cuda.is_available():
+    torch.set_default_device('cuda')
+else:
+    print("CUDA is not available. Using CPU tensors.")
+###########################################################################3
+
+
+
+
 
 def initialize_data_create_lookup_tables():
     words = open('names.txt', 'r').read().splitlines()
@@ -28,22 +42,20 @@ for w in words:
 
 xs = torch.tensor(xs)
 ys = torch.tensor(ys)
-print('ys', len(ys))
 
-seed = 766183
-torch.manual_seed(seed)
+
+
+
 
 
 xenc = F.one_hot(xs, num_classes=27).float() 
 W = torch.randn((27,27), requires_grad=True)
 
-def train(epoch,epochs,neurons):
-    W = neurons
+epochs = 50
+for epoch in range(epochs):
     logits = xenc @ W
-    counts = torch.exp(logits)
-    probs = counts / counts.sum(dim=1, keepdim=True)
+    loss = F.cross_entropy(logits, ys)
 
-    loss = -probs[torch.arange(probs.size(0)), ys].log().mean()
 
     W.grad = None 
     loss.backward()
@@ -55,29 +67,36 @@ def train(epoch,epochs,neurons):
         print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item()}")
 
 
-epochs = 100
-for epoch in range(epochs):
-    train(epoch,epochs,W)
-
-plt.matshow(W.detach().numpy())
-plt.show()
 
 
 
-def sample(iterations,W):
-    prob_w = torch.exp(W) 
-    prob_w = prob_w / prob_w.sum(dim=1, keepdim=True)
-    names = []
-    for i in range(iterations):
-        name = ""
-        letter_index = 0
-        while(True):
-            letter_index = torch.multinomial(prob_w[letter_index], 1, replacement=True, generator=g).item()
-            if letter_index == 0:
-                break
-            name += itos[letter_index]
-        names.append(name)
-        print(name)
-    return names
 
-sample(10,W)
+# SAMPLE NAMES 
+iterations = 10
+prob_w = torch.exp(W) 
+prob_w = prob_w / prob_w.sum(dim=1, keepdim=True)
+names = []
+for i in range(iterations):
+    name = ""
+    letter_index = 0
+    while(True):
+        letter_index = torch.multinomial(prob_w[letter_index], 1, replacement=True).item()
+        if letter_index == 0:
+            break
+        name += itos[letter_index]
+    names.append(name)
+    print(name)
+
+
+
+
+
+end_time = time.time()
+print(f"Elapsed time: {(end_time - start_time):.6f} seconds")
+
+
+
+
+
+
+
