@@ -5,7 +5,16 @@ from pprint import pprint
 import torch
 import torch.nn.functional as F
 
-g = torch.Generator().manual_seed(2)
+torch.manual_seed(0)
+
+if torch.cuda.is_available():
+    torch.set_default_device('cuda')
+else:
+    print("CUDA is not available. Using CPU tensors.")
+
+
+
+
 
 def initialize_data_create_lookup_tables():
     words = open('names.txt', 'r').read().splitlines()
@@ -17,10 +26,9 @@ def initialize_data_create_lookup_tables():
 
 
 def create_bigram_probability_distribution(custom_list_of_words=False):
-    if custom_list_of_words:
-        stoi, itos, words = initialize_data_create_lookup_tables(custom_list_of_words)
-    else:
-        stoi, itos, words = initialize_data_create_lookup_tables()
+    print("Creating bigram model")
+
+    stoi, itos, words = initialize_data_create_lookup_tables()
 
     N = torch.zeros((27,27), dtype=torch.int32)
     for w in words:
@@ -44,7 +52,7 @@ def generate_name(iterations):
         name = ""
         letter_index = 0
         while(True):
-            letter_index = torch.multinomial(P[letter_index], 1, replacement=True, generator=g).item()
+            letter_index = torch.multinomial(P[letter_index], 1, replacement=True).item()
             if letter_index == 0:
                 break
             name += itos[letter_index]
@@ -53,6 +61,8 @@ def generate_name(iterations):
 
 
 def create_pentgram_probability_distribution(): 
+    print("Creating pentgram model")
+
     stoi, itos, words = initialize_data_create_lookup_tables()
 
     N = torch.zeros((27,27,27,27,27), dtype=torch.int32)
@@ -82,7 +92,7 @@ def generate_name_pentgram(iterations):
         name = ""
         ix1,ix2,ix3,ix4 = 0,0,0,0 
         while(True):
-            ix1,ix2,ix3,ix4 = ix2,ix3,ix4, torch.multinomial(P[ix1, ix2, ix3,ix4], 1, replacement=True, generator=g).item()
+            ix1,ix2,ix3,ix4 = ix2,ix3,ix4, torch.multinomial(P[ix1, ix2, ix3,ix4], 1, replacement=True).item()
             if ix4 == 0:
                 break
             name += itos[ix4]
@@ -146,3 +156,8 @@ def compare_models():
     print("Custom words evaluated by pentgram model", evaluate_model(P3, ["ignatio", "kyle", "suzaan", "luane", "albert"]))
 
 compare_models()
+
+
+
+
+
