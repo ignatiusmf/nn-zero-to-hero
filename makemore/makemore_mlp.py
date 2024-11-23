@@ -15,6 +15,7 @@ if torch.cuda.is_available():
     torch.set_default_device('cuda')
 else:
     print("CUDA is not available. Using CPU tensors.")
+
 ###########################################################################3
 
 words = open('names.txt', 'r').read().splitlines()
@@ -59,6 +60,7 @@ for epoch in range(epochs):
     if (epoch + 1) % (epochs / 100) == 0:
         print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item()}, Loss Delta: {(loss - lastloss):.6f}")
         lastloss = loss
+
 
 
 
