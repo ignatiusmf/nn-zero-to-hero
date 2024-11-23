@@ -44,6 +44,13 @@ xenc = F.one_hot(xs, num_classes=27).float()
 W = torch.randn((27,27), requires_grad=True)
 
 
+logits = xenc @ W
+print(logits[1])
+print(logits.shape)
+
+
+
+exit()
 
 epochs = 100 
 lastloss = 0

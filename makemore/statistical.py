@@ -155,9 +155,59 @@ def compare_models():
     print("Custom words evaluated by bigram model", evaluate_model(P, ["ignatio", "kyle", "suzaan", "luane", "albert"]))
     print("Custom words evaluated by pentgram model", evaluate_model(P3, ["ignatio", "kyle", "suzaan", "luane", "albert"]))
 
-compare_models()
+# compare_models()
+
+
+def trigram():
+    stoi, itos, words = initialize_data_create_lookup_tables()
+
+    print('Creating count tensor')
+    N = torch.zeros((27,27,27), dtype=torch.int32)
+    for w in words:
+        chars = ['.'] + ['.'] + list(w) + ['.'] 
+        for ch1, ch2, ch3 in zip(chars, chars[1:], chars[2:]):
+            ix1 = stoi[ch1]
+            ix2 = stoi[ch2]
+            ix3 = stoi[ch3]
+            N[ix1, ix2, ix3] += 1
+
+    print('\nCreating probability tensor')
+    P = torch.empty((27,27,27),dtype=torch.float)
+    for i in range(27):
+        for j in range(27):
+            P[i,j] = N[i,j].float() / N[i,j].float().sum()
+
+    print('\nSampling')
+    iterations = 10
+    names = []
+    for i in range(iterations):
+        name = ""
+        ix1, ix2 = 0, 0
+        while(True):
+            ix1, ix2 = ix2, torch.multinomial(P[ix1, ix2], 1, replacement=True).item()
+            if ix2 == 0:
+                break
+            name += itos[ix2]
+        names.append(name)
+    print(names)
+
+    print('\nCalculating loss')
+    n = 0
+    nnll = 0.0
+    for w in words:
+        chars = ['.'] + ['.'] + list(w) + ['.'] 
+        for ch1, ch2, ch3 in zip(chars, chars[1:], chars[2:]):
+            ix1 = stoi[ch1]
+            ix2 = stoi[ch2]
+            ix3 = stoi[ch3]
+
+            ll = torch.log(P[ix1,ix2,ix3])
+            nnll += ll 
+            n += 1
+    nnll = -nnll/n
+    print(nnll.item())
 
 
 
 
-
+trigram()
