@@ -19,9 +19,16 @@ if torch.cuda.is_available():
 else:
     print("CUDA is not available. Using CPU tensors.")
 
-def mst(tensor, **kwargs):
+def mst(tensor, title=None, **kwargs):
     plt.matshow(tensor.detach().cpu().numpy(), **kwargs)
+    plt.title(title)
     plt.show()
+
+def ht(tensor, title=None, **kwargs):
+    plt.hist(tensor.view(-1).tolist(),50)
+    plt.title(title)
+    plt.show()
+
 ###########################################################################3
 
 words = open('names.txt', 'r').read().splitlines()
@@ -60,13 +67,11 @@ Xte, Yte = build_dataset(words[n2:])
 
 
 embed_size = 2
-C = torch.randn((27,embed_size))
-
-W1 = torch.randn((block_size*embed_size,100))
-b1 = torch.randn((100))
-
-O = torch.randn((100,27))
-o = torch.randn((27))
+C = torch.randn((27,embed_size)) 
+W1 = torch.randn((block_size*embed_size,100)) * 0.1
+b1 = torch.randn((100)) * 0.1
+O = torch.randn((100,27)) * 0.01
+o = torch.randn((27)) * 0
 
 parameters = [C, W1, b1, O, o]
 
@@ -75,40 +80,54 @@ for p in parameters:
 
 
 lr = 0.1
-batch_size = 320
-epochs = 50000
+batch_size = 32 
+
+epochs = 5000
+lossi = []
 for epoch in range(epochs):
     ix = torch.randint(0, Xtr.shape[0], (batch_size,))
 
     emb = C[Xtr[ix]]
-    H1 = torch.tanh(emb.view(-1,block_size*embed_size) @ W1 + b1)
+    preH1 = emb.view(-1,block_size*embed_size) @ W1 + b1
+    H1 = torch.tanh(preH1)
     logits = H1 @ O + o
-
     loss = F.cross_entropy(logits, Ytr[ix])
-
-
-
 
     for p in parameters:
         p.grad = None
 
     loss.backward()
+    lossi.append(loss.log10().item())
 
     with torch.no_grad():
         for p in parameters:
             p.data += -lr * p.grad
 
 
-
-
     if epoch % 100 == 0:
         print(f'{loss=:.6f}, {epoch=}, {lr=}')
 
     if epoch > epochs*0.8 and lr > 0.01:
-        print('Adjusting lr')
+        print('Adjusting learning rate and batch size')
         lr = 0.01
         batch_size = batch_size*2
 
+
+
+
+plt.plot(lossi)
+plt.show()
+
+
+mst(preH1, 'h1preact')
+ht(preH1, 'h1preact')
+
+mst(H1, 'h1')
+ht(H1, 'h1')
+
+
+mst(logits)
+ht(logits)
 
 
 with torch.no_grad():
@@ -116,36 +135,29 @@ with torch.no_grad():
     H1 = torch.tanh(emb.view(-1,block_size*embed_size) @ W1 + b1)
     logits = H1 @ O + o
     loss = F.cross_entropy(logits, Ydev)
-    print(f'{loss.item():.6f} - Full loss', )
+    print(f'{loss.item():.6f} - Dev loss', )
 
 exit()
 
 
-lr = 0.5
-
-for i in range(10000):
-    logits1 = (xenc.view(len(Y), -1) @ W) + b
-    logits11 = torch.tanh(logits1)
-    logits2 = logits11 @ W2 + b2
-    loss = F.cross_entropy(logits2, Y)
 
 
-    W.grad = None 
-    b.grad = None
-    W2.grad = None
-    b2.grad = None
-    loss.backward()
 
 
-    with torch.no_grad():
-        W += -lr * W.grad
-        b += -lr * b.grad
-        W2 += -lr * W2.grad
-        b2 += -lr * b2.grad
 
-    if i % 10 == 0:
-        print(i, f'{loss.item():.6f}')
-print(f'Final loss {loss.item():.6f}')
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
