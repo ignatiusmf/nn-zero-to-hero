@@ -12,7 +12,9 @@ torch.manual_seed(0)
 start_time = time.time()
 
 def timer(note='Time'):
-    print(f'{note}: {(time.time() - start_time):.3f}')
+    global start_time
+    print('-'*50, f'\n{(time.time() - start_time):.3f} - Elapsed time {note}\n', '-'*50)
+    start_time = time.time()
 
 if torch.cuda.is_available():
     torch.set_default_device('cuda')
@@ -20,15 +22,29 @@ else:
     print("CUDA is not available. Using CPU tensors.")
 
 def mst(tensor, title=None, **kwargs):
+    ## TENSOR VISUALIZATION ##
     plt.matshow(tensor.detach().cpu().numpy(), **kwargs)
     plt.title(title)
     plt.show()
 
 def ht(tensor, title=None, **kwargs):
+    ## HISTOGRAM ## 
     plt.hist(tensor.view(-1).tolist(),50)
     plt.title(title)
     plt.show()
 
+def ht2(tensor1, tensor2, title1=None, title2=None, **kwargs):
+    plt.figure(figsize=(20,5))
+    plt.subplot(121)
+    plt.hist(tensor1.view(-1).tolist(),50, density=True)
+    plt.title(title1)
+    plt.subplot(122)
+    plt.hist(tensor2.view(-1).tolist(),50, density=True)
+    plt.title(title2)
+    plt.show()
+
+def moving_average(data, window_size):
+    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
 ###########################################################################3
 
 words = open('names.txt', 'r').read().splitlines()
@@ -67,38 +83,56 @@ Xte, Yte = build_dataset(words[n2:])
 
 
 embed_size = 2
-C = torch.randn((27,embed_size)) 
-W1 = torch.randn((block_size*embed_size,100)) * 0.1
-b1 = torch.randn((100)) * 0.1
-O = torch.randn((100,27)) * 0.01
-o = torch.randn((27)) * 0
+n_hidden = 100
+vocab_size = len(chars) + 1
 
-parameters = [C, W1, b1, O, o]
+C = torch.randn((vocab_size,embed_size)) 
+W1 = torch.randn((block_size*embed_size,n_hidden)) * 5/3/(block_size*embed_size)**0.5
+#b1 = torch.randn((n_hidden)) * 0.01
+O = torch.randn((n_hidden,vocab_size)) * 0.01
+o = torch.randn((vocab_size)) * 0
+
+bngain = torch.ones((1, n_hidden))
+bnbias = torch.zeros((1, n_hidden))
+bnmean_running = torch.zeros((1, n_hidden))
+bnstd_running = torch.ones((1, n_hidden))
+
+parameters = [C, W1, O, o, bngain, bnbias]
 
 for p in parameters:
     p.requires_grad = True
 
 
+timer('before training')
+
 lr = 0.1
 batch_size = 32 
 
-epochs = 5000
+epochs = 10000
 lossi = []
 for epoch in range(epochs):
     ix = torch.randint(0, Xtr.shape[0], (batch_size,))
 
     emb = C[Xtr[ix]]
-    preH1 = emb.view(-1,block_size*embed_size) @ W1 + b1
+    preH1 = emb.view(-1,block_size*embed_size) @ W1 #+ b1
+
+    bnmeani = preH1.mean(0, keepdim=True)
+    bnstdi = preH1.std(0, keepdim=True)
+    with torch.no_grad():
+        bnmean_running = 0.999 * bnmean_running + 0.001 * bnmeani
+        bnstd_running = 0.999 * bnstd_running + 0.001 * bnstdi
+
+    preH1 = bngain * (preH1 - bnmeani) / bnstdi  + bnbias
+
     H1 = torch.tanh(preH1)
     logits = H1 @ O + o
     loss = F.cross_entropy(logits, Ytr[ix])
 
-    for p in parameters:
-        p.grad = None
-
-    loss.backward()
     lossi.append(loss.log10().item())
 
+    for p in parameters:
+        p.grad = None
+    loss.backward()
     with torch.no_grad():
         for p in parameters:
             p.data += -lr * p.grad
@@ -108,59 +142,53 @@ for epoch in range(epochs):
         print(f'{loss=:.6f}, {epoch=}, {lr=}')
 
     if epoch > epochs*0.8 and lr > 0.01:
-        print('Adjusting learning rate and batch size')
+        print('\nAdjusting learning rate and batch size')
         lr = 0.01
         batch_size = batch_size*2
 
+timer('after training')
+
+def dev_eval():
+    with torch.no_grad():
+        emb = C[Xdev]
+        preH1 = emb.view(-1,block_size*embed_size) @ W1 #+ b1 
+        preH1 = bngain * (preH1 - bnmean_running) / bnstd_running  + bnbias
+        H1 = torch.tanh(preH1)
+        logits = H1 @ O + o
+        loss = F.cross_entropy(logits, Ydev)
+        print(f'{loss.item():.6f} - Dev loss', )
+dev_eval()
 
 
 
-plt.plot(lossi)
+plt.plot(np.convolve(lossi, np.ones(50)/50, mode='valid'))
 plt.show()
 
 
-mst(preH1, 'h1preact')
-ht(preH1, 'h1preact')
 
-mst(H1, 'h1')
-ht(H1, 'h1')
+plt.subplot(121)
+plt.hist(H1.view(-1).tolist(), 50, density=True)
+plt.title('H1')
+plt.subplot(122)
+plt.hist(preH1.view(-1).tolist(), 50, density=True)
+plt.title('H1 Preact')
+plt.show()
 
 
-mst(logits)
-ht(logits)
+plt.imshow(H1.abs().detach().cpu().numpy() > 0.99)
+plt.show()
 
 
-with torch.no_grad():
-    emb = C[Xdev]
-    H1 = torch.tanh(emb.view(-1,block_size*embed_size) @ W1 + b1)
-    logits = H1 @ O + o
-    loss = F.cross_entropy(logits, Ydev)
-    print(f'{loss.item():.6f} - Dev loss', )
 
+
+
+
+
+
+
+# 2.3076 voor batch norm
+# 2.361
 exit()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -203,5 +231,3 @@ exit()
 
 
 
-end_time = time.time()
-print(f"Elapsed time: {(end_time - start_time):.6f} seconds")
