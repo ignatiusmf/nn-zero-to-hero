@@ -1,3 +1,4 @@
+import os
 import warnings
 import time
 import numpy as np
@@ -47,7 +48,7 @@ def moving_average(data, window_size):
     return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
 ###########################################################################3
 
-words = open('names.txt', 'r').read().splitlines()
+words = open(os.path.dirname(os.path.abspath(__file__)) + '/names.txt', 'r').read().splitlines()
 chars = sorted(list(set(''.join(words))))
 stoi = {s:i+1 for i,s in enumerate(chars)}
 stoi['.'] = 0  
@@ -118,6 +119,7 @@ for epoch in range(epochs):
 
     bnmeani = preH1.mean(0, keepdim=True)
     bnstdi = preH1.std(0, keepdim=True)
+
     with torch.no_grad():
         bnmean_running = 0.999 * bnmean_running + 0.001 * bnmeani
         bnstd_running = 0.999 * bnstd_running + 0.001 * bnstdi

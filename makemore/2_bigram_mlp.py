@@ -1,3 +1,4 @@
+import os
 import warnings
 import time
 import numpy as np
@@ -17,8 +18,7 @@ else:
     print("CUDA is not available. Using CPU tensors.")
 
 ###########################################################################3
-
-words = open('names.txt', 'r').read().splitlines()
+words = open(os.path.dirname(os.path.abspath(__file__)) + '/names.txt', 'r').read().splitlines()
 chars = sorted(list(set(''.join(words))))
 stoi = {s:i+1 for i,s in enumerate(chars)}
 stoi['.'] = 0  
@@ -44,13 +44,6 @@ xenc = F.one_hot(xs, num_classes=27).float()
 W = torch.randn((27,27), requires_grad=True)
 
 
-logits = xenc @ W
-print(logits[1])
-print(logits.shape)
-
-
-
-exit()
 
 epochs = 100 
 lastloss = 0
