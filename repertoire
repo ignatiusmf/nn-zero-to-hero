@@ -1,0 +1,5 @@
+1. Implement pytorch API for backpropogation.
+2. Train a neural network using pytorch without utilizing advanced API.
+3. Implement pytorch API for advanced neural network creation.
+4. Create diagnostic tools to examine the state of a neural network.
+

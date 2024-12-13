@@ -1,13 +1,9 @@
 import os
-import warnings
 import time
-import numpy as np
-import matplotlib.pyplot as plt
-from pprint import pprint
 import torch
 import torch.nn.functional as F
 
-########################################################################### SETUP
+# SETUP
 torch.manual_seed(0)
 
 start_time = time.time()
@@ -17,17 +13,16 @@ if torch.cuda.is_available():
 else:
     print("CUDA is not available. Using CPU tensors.")
 
-###########################################################################3
-words = open(os.path.dirname(os.path.abspath(__file__)) + '/names.txt', 'r').read().splitlines()
+# 3
+words = open(os.path.dirname(os.path.abspath(__file__)) +
+             '/names.txt', 'r').read().splitlines()
 chars = sorted(list(set(''.join(words))))
-stoi = {s:i+1 for i,s in enumerate(chars)}
-stoi['.'] = 0  
-itos = {i:s for s,i in stoi.items()} 
+stoi = {s: i+1 for i, s in enumerate(chars)}
+stoi['.'] = 0
+itos = {i: s for s, i in stoi.items()}
 
 
-
-
-xs, ys = [], [] 
+xs, ys = [], []
 for w in words:
     chs = ['.'] + list(w) + ['.']
     for ch1, ch2 in zip(chs, chs[1:]):
@@ -40,39 +35,38 @@ xs = torch.tensor(xs)
 ys = torch.tensor(ys)
 
 
-xenc = F.one_hot(xs, num_classes=27).float() 
-W = torch.randn((27,27), requires_grad=True)
+xenc = F.one_hot(xs, num_classes=27).float()
+W = torch.randn((27, 27), requires_grad=True)
 
 
-
-epochs = 100 
+epochs = 100
 lastloss = 0
 for epoch in range(epochs):
     logits = xenc @ W
     loss = F.cross_entropy(logits, ys)
 
-    W.grad = None 
+    W.grad = None
     loss.backward()
 
     with torch.no_grad():
         W += -15 * W.grad
 
     if (epoch + 1) % (epochs / 100) == 0:
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item()}, Loss Delta: {(loss - lastloss):.6f}")
+        print(f"Epoch {epoch+1}/{epochs}, \
+              Loss: {loss.item()}, Loss Delta: {(loss - lastloss):.6f}")
         lastloss = loss
 
 
-
-
 iterations = 10
-prob_w = torch.exp(W) 
+prob_w = torch.exp(W)
 prob_w = prob_w / prob_w.sum(dim=1, keepdim=True)
 names = []
 for i in range(iterations):
     name = ""
     letter_index = 0
-    while(True):
-        letter_index = torch.multinomial(prob_w[letter_index], 1, replacement=True).item()
+    while (True):
+        letter_index = torch.multinomial(
+            prob_w[letter_index], 1, replacement=True).item()
         if letter_index == 0:
             break
         name += itos[letter_index]
@@ -80,15 +74,5 @@ for i in range(iterations):
     print(name)
 
 
-
-
-
 end_time = time.time()
 print(f"Elapsed time: {(end_time - start_time):.6f} seconds")
-
-
-
-
-
-
-

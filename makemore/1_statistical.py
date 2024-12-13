@@ -13,15 +13,12 @@ else:
     print("CUDA is not available. Using CPU tensors.")
 
 
-
-
-
 def initialize_data_create_lookup_tables():
     words = open('names.txt', 'r').read().splitlines()
     chars = sorted(list(set(''.join(words))))
-    stoi = {s:i+1 for i,s in enumerate(chars)}
-    stoi['.'] = 0  
-    itos = {i:s for s,i in stoi.items()} 
+    stoi = {s: i+1 for i, s in enumerate(chars)}
+    stoi['.'] = 0
+    itos = {i: s for s, i in stoi.items()}
     return stoi, itos, words
 
 
@@ -30,19 +27,20 @@ def create_bigram_probability_distribution(custom_list_of_words=False):
 
     stoi, itos, words = initialize_data_create_lookup_tables()
 
-    N = torch.zeros((27,27), dtype=torch.int32)
+    N = torch.zeros((27, 27), dtype=torch.int32)
     for w in words:
-        chars = ['.'] + list(w) + ['.'] 
+        chars = ['.'] + list(w) + ['.']
         for ch1, ch2 in zip(chars, chars[1:]):
             ix1 = stoi[ch1]
             ix2 = stoi[ch2]
             N[ix1, ix2] += 1
 
-    P = torch.empty((27,27),dtype=torch.float)
+    P = torch.empty((27, 27), dtype=torch.float)
     for i in range(27):
         P[i] = N[i].float() / N[i].float().sum()
     P += 0.00001
     return P, N
+
 
 def generate_name(iterations):
     stoi, itos, words = initialize_data_create_lookup_tables()
@@ -51,8 +49,9 @@ def generate_name(iterations):
     for i in range(iterations):
         name = ""
         letter_index = 0
-        while(True):
-            letter_index = torch.multinomial(P[letter_index], 1, replacement=True).item()
+        while (True):
+            letter_index = torch.multinomial(
+                P[letter_index], 1, replacement=True).item()
             if letter_index == 0:
                 break
             name += itos[letter_index]
@@ -60,15 +59,15 @@ def generate_name(iterations):
     return names
 
 
-def create_pentgram_probability_distribution(): 
+def create_pentgram_probability_distribution():
     print("Creating pentgram model")
 
     stoi, itos, words = initialize_data_create_lookup_tables()
 
-    N = torch.zeros((27,27,27,27,27), dtype=torch.int32)
+    N = torch.zeros((27, 27, 27, 27, 27), dtype=torch.int32)
     for w in words:
-        chars =  ['.'] + ['.'] + ['.'] + ['.'] + list(w) + ['.'] 
-        for ch1,ch2,ch3,ch4,ch5 in zip(chars,chars[1:],chars[2:],chars[3:],chars[4:]):
+        chars = ['.'] + ['.'] + ['.'] + ['.'] + list(w) + ['.']
+        for ch1, ch2, ch3, ch4, ch5 in zip(chars, chars[1:], chars[2:], chars[3:], chars[4:]):
             ix1 = stoi[ch1]
             ix2 = stoi[ch2]
             ix3 = stoi[ch3]
@@ -76,13 +75,15 @@ def create_pentgram_probability_distribution():
             ix5 = stoi[ch5]
             N[ix1, ix2, ix3, ix4, ix5] += 1
 
-    P = torch.empty((27,27,27,27,27), dtype=torch.float)
+    P = torch.empty((27, 27, 27, 27, 27), dtype=torch.float)
     for i in range(27):
         for j in range(27):
             for k in range(27):
                 for l in range(27):
-                    P[i,j,k,l] = (N[i,j,k,l].float() + 0.001) / (N[i,j,k,l].float() + 0.001).sum()
+                    P[i, j, k, l] = (N[i, j, k, l].float() + 0.001) / \
+                        (N[i, j, k, l].float() + 0.001).sum()
     return P, N
+
 
 def generate_name_pentgram(iterations):
     stoi, itos, words = initialize_data_create_lookup_tables()
@@ -90,9 +91,10 @@ def generate_name_pentgram(iterations):
     names = []
     for i in range(iterations):
         name = ""
-        ix1,ix2,ix3,ix4 = 0,0,0,0 
-        while(True):
-            ix1,ix2,ix3,ix4 = ix2,ix3,ix4, torch.multinomial(P[ix1, ix2, ix3,ix4], 1, replacement=True).item()
+        ix1, ix2, ix3, ix4 = 0, 0, 0, 0
+        while (True):
+            ix1, ix2, ix3, ix4 = ix2, ix3, ix4, torch.multinomial(
+                P[ix1, ix2, ix3, ix4], 1, replacement=True).item()
             if ix4 == 0:
                 break
             name += itos[ix4]
@@ -103,38 +105,39 @@ def generate_name_pentgram(iterations):
 def evaluate_model(P, custom_words=False):
     stoi, itos, words = initialize_data_create_lookup_tables()
     if custom_words:
-        words = custom_words 
+        words = custom_words
     n = 0
     nnll = 0.0
 
     size = len(P.size())
     if size == 2:
         for w in words:
-            chars = ['.'] + list(w) + ['.'] 
+            chars = ['.'] + list(w) + ['.']
             for ch1, ch2 in zip(chars, chars[1:]):
                 ix1 = stoi[ch1]
                 ix2 = stoi[ch2]
 
-                ll = torch.log(P[ix1,ix2])
-                nnll += ll 
+                ll = torch.log(P[ix1, ix2])
+                nnll += ll
                 n += 1
 
     elif size == 5:
         for w in words:
-            chars =  ['.'] + ['.'] + ['.'] + ['.'] + list(w) + ['.'] 
-            for ch1,ch2,ch3,ch4,ch5 in zip(chars,chars[1:],chars[2:],chars[3:],chars[4:]):
+            chars = ['.'] + ['.'] + ['.'] + ['.'] + list(w) + ['.']
+            for ch1, ch2, ch3, ch4, ch5 in zip(chars, chars[1:], chars[2:], chars[3:], chars[4:]):
                 ix1 = stoi[ch1]
                 ix2 = stoi[ch2]
                 ix3 = stoi[ch3]
                 ix4 = stoi[ch4]
                 ix5 = stoi[ch5]
 
-                ll = torch.log(P[ix1,ix2,ix3,ix4,ix5])
-                nnll += ll 
+                ll = torch.log(P[ix1, ix2, ix3, ix4, ix5])
+                nnll += ll
                 n += 1
 
     nnll = -nnll/n
     return nnll.item()
+
 
 def compare_models():
     names1 = generate_name(10)
@@ -146,14 +149,17 @@ def compare_models():
     print("Normal words evaluated by bigram model", evaluate_model(P))
     print("Normal words evaluated by pentgram model", evaluate_model(P3))
 
-    print("bigram words evaluated by bigram model", evaluate_model(P,names1))
-    print("bigram words evaluated by pentgram model", evaluate_model(P3,names1))
+    print("bigram words evaluated by bigram model", evaluate_model(P, names1))
+    print("bigram words evaluated by pentgram model", evaluate_model(P3, names1))
 
-    print("Pentgram words evaluated by bigram model", evaluate_model(P,names2))
-    print("Pentgram words evaluated by pentgram model", evaluate_model(P3,names2))
+    print("Pentgram words evaluated by bigram model", evaluate_model(P, names2))
+    print("Pentgram words evaluated by pentgram model",
+          evaluate_model(P3, names2))
 
-    print("Custom words evaluated by bigram model", evaluate_model(P, ["ignatio", "kyle", "suzaan", "luane", "albert"]))
-    print("Custom words evaluated by pentgram model", evaluate_model(P3, ["ignatio", "kyle", "suzaan", "luane", "albert"]))
+    print("Custom words evaluated by bigram model", evaluate_model(
+        P, ["ignatio", "kyle", "suzaan", "luane", "albert"]))
+    print("Custom words evaluated by pentgram model", evaluate_model(
+        P3, ["ignatio", "kyle", "suzaan", "luane", "albert"]))
 
 # compare_models()
 
@@ -162,9 +168,9 @@ def trigram():
     stoi, itos, words = initialize_data_create_lookup_tables()
 
     print('Creating count tensor')
-    N = torch.zeros((27,27,27), dtype=torch.int32)
+    N = torch.zeros((27, 27, 27), dtype=torch.int32)
     for w in words:
-        chars = ['.'] + ['.'] + list(w) + ['.'] 
+        chars = ['.'] + ['.'] + list(w) + ['.']
         for ch1, ch2, ch3 in zip(chars, chars[1:], chars[2:]):
             ix1 = stoi[ch1]
             ix2 = stoi[ch2]
@@ -172,10 +178,10 @@ def trigram():
             N[ix1, ix2, ix3] += 1
 
     print('\nCreating probability tensor')
-    P = torch.empty((27,27,27),dtype=torch.float)
+    P = torch.empty((27, 27, 27), dtype=torch.float)
     for i in range(27):
         for j in range(27):
-            P[i,j] = N[i,j].float() / N[i,j].float().sum()
+            P[i, j] = N[i, j].float() / N[i, j].float().sum()
 
     print('\nSampling')
     iterations = 10
@@ -183,8 +189,9 @@ def trigram():
     for i in range(iterations):
         name = ""
         ix1, ix2 = 0, 0
-        while(True):
-            ix1, ix2 = ix2, torch.multinomial(P[ix1, ix2], 1, replacement=True).item()
+        while (True):
+            ix1, ix2 = ix2, torch.multinomial(
+                P[ix1, ix2], 1, replacement=True).item()
             if ix2 == 0:
                 break
             name += itos[ix2]
@@ -195,19 +202,17 @@ def trigram():
     n = 0
     nnll = 0.0
     for w in words:
-        chars = ['.'] + ['.'] + list(w) + ['.'] 
+        chars = ['.'] + ['.'] + list(w) + ['.']
         for ch1, ch2, ch3 in zip(chars, chars[1:], chars[2:]):
             ix1 = stoi[ch1]
             ix2 = stoi[ch2]
             ix3 = stoi[ch3]
 
-            ll = torch.log(P[ix1,ix2,ix3])
-            nnll += ll 
+            ll = torch.log(P[ix1, ix2, ix3])
+            nnll += ll
             n += 1
     nnll = -nnll/n
     print(nnll.item())
-
-
 
 
 trigram()
