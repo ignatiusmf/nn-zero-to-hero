@@ -22,14 +22,18 @@ def build_dataset(words):
         for c in w + '.':
             X.append(context)
             Y.append(stoi[c])
-            print(''.join(itos[con] for con in context), '-->', c )
+            # print(''.join(itos[con] for con in context), '-->', c )
             context = context[1:] + [stoi[c]]
 
-        print()
-
     X, Y = torch.tensor(X), torch.tensor(X)
+    
+
 
     return X, Y 
+
+
+
+
 
 
 n1 = int(0.8 * len(words))
