@@ -130,8 +130,7 @@ def evaluate():
 evaluate()
 if epochs > 25:
     moving_average = int(batch_size*math.log10(epochs))  # int(epochs/10)
-    plt.plot(np.convolve(losses, np.ones(
-        moving_average)/moving_average, mode='valid'))
+    plt.plot(np.convolve(losses, np.ones(moving_average)/moving_average, mode='valid'))
 else:
     plt.plot(losses)
 

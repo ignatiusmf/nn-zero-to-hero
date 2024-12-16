@@ -91,10 +91,8 @@ class BatchNorm1d:
         # update the buffers
         if self.training:
             with torch.no_grad():
-                self.running_mean = (1 - self.momentum) * \
-                    self.running_mean + self.momentum * xmean
-                self.running_var = (1 - self.momentum) * \
-                    self.running_var + self.momentum * xvar
+                self.running_mean = (1 - self.momentum) * self.running_mean + self.momentum * xmean
+                self.running_var = (1 - self.momentum) * self.running_var + self.momentum * xvar
         return self.out
 
     def parameters(self):
@@ -147,7 +145,7 @@ for p in parameters:
     p.requires_grad = True
 
 
-max_steps = 200000
+max_steps = 1000 
 batch_size = 32
 lossi = []
 ud = []
@@ -178,15 +176,15 @@ for i in range(max_steps):
         p.data += -lr * p.grad
 
     # track stats
-    if i % 10000 == 0:  # print every once in a while
+    if i % 100 == 0:  # print every once in a while
         print(f'{i:7d}/{max_steps:7d}: {loss.item():.4f}')
     lossi.append(loss.log10().item())
     with torch.no_grad():
         ud.append([((lr*p.grad).std() / p.data.std()).log10().item()
                   for p in parameters])
 
-    if i >= 1000:
-        break  # AFTER_DEBUG: would take out obviously to run full optimization
+    # if i >= 1000:
+    #     break  # AFTER_DEBUG: would take out obviously to run full optimization
 
 
 # for i, layer in enumerate(layers[:-1]):
