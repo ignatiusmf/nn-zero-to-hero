@@ -18,7 +18,7 @@ stoi = {s: i + 1 for i, s in enumerate(chars)}
 stoi['.'] = 0
 itos = {i: s for s, i in stoi.items()}
 
-block_size = 5
+block_size = 3
 
 
 def build_dataset(words):
@@ -124,9 +124,9 @@ for p in parameters:
 
 
 batch_size = 32
-lr = 0.1
+lr = 0.51
 losses = []
-epochs = 1000
+epochs = 100
 ud = []
 
 for epoch in range(epochs):
@@ -156,99 +156,122 @@ for epoch in range(epochs):
 
     losses.append(loss.log10().item())
 
-    if epoch % (epochs/10) == 0:
+    if epoch % (epochs/10) == 0 or epoch == epochs - 1:
         print(f'{epoch:7d} {loss.item():.6f}')
 
-    if epoch == epochs * 0.8:
-        print('\nAdjusting learning rate and batch size\n')
-        batch_size *= 2
-        lr /= 5
+    # if epoch == epochs * 0.8:
+    #     print('\nAdjusting learning rate and batch size\n')
+    #     batch_size *= 2
+    #     lr /= 5
 
     with torch.no_grad():
         ud.append([((lr*p.grad).std() / p.data.std()).log10().item()
                   for p in parameters])
 
 
-
-
-
-
-
-print(f'\n{'-'*55}\nLoss function\n{'-'*55}\n')
-
 def evaluate():
-    emb = C[Xde]
+    print(f'\n{'-'*55}\nLoss function\n{'-'*55}\n')
+    emb = C[Xtr]
     x = emb.view(-1, n_emb*block_size)
     for layer in layers:
         x = layer(x)
-    loss = F.cross_entropy(x, Yde)
+    loss = F.cross_entropy(x, Ytr)
+
     print(f'{loss:.6f} - DEV LOSS')
 
-evaluate()
-moving_average = int(epochs**0.5)
-plt.plot(np.convolve(losses, np.ones(moving_average)/moving_average, mode='valid'))
-plt.show()
+
+def loss_graph():
+    moving_average = int(epochs**0.5)
+    plt.plot(np.convolve(losses, np.ones(
+        moving_average)/moving_average, mode='valid'))
+    plt.show()
 
 
+def sample(num):
+    print(f'\n{'-'*55}\nSAMPLING\n{'-'*55}\n')
+    names = []
+    for i in range(num):
+        out = ''
+        context = [0] * block_size
+        while True:
+            emb = C[torch.tensor([context])]
+            x = emb.view(-1, block_size*n_emb)
+            for layer in layers:
+                x = layer(x)
+
+            logits = x
+            probs = F.softmax(logits, dim=1)
+            ix = torch.multinomial(probs, 1, replacement=True).item()
+            if ix == 0:
+                break
+
+            out += itos[ix]
+            context = context[1:] + [ix]
+        names.append(out)
+    return names
 
 
+def tanh_values():
+    print(f'\n{'-'*55}\nData distribution of Tanh layers\n{'-'*55}\n')
 
-print(f'\n{'-'*55}\nActivation values of tanh layers\n{'-'*55}\n')
+    legends = []
+    for i, layer in enumerate(layers):
+        if isinstance(layer, Tanh):
+            t = layer.out.cpu().detach()
+            print(f'Layer {i} {layer.__class__.__name__} {tuple(t.shape)}, std {t.std():.2f} mean {
+                  t.mean():.2f}, saturated {(t.abs() > 0.97).float().mean()*100:.2f}%')
+            hy, hx = torch.histogram(t, density=True)
+            plt.plot(hx[:-1], hy)
+            legends.append(f'layer {i} {layer.__class__.__name__} {
+                           tuple(t.shape)}')
+    plt.legend(legends)
+    plt.title('Tanh data distribution')
+    plt.show()
 
-legends = []
-for i, layer in enumerate(layers[:-1]):
-    if isinstance(layer, Tanh):
-        t = layer.out.cpu()
-        print('layer %d (%s): mean %+.2f, std %.2f, saturated: %.2f%%' %
-              (i, layer.__class__.__name__, t.mean(), t.std(), (t.abs() > 0.97).float().mean()*100))
-        hy, hx = torch.histogram(t, density=True)
-        plt.plot(hx[:-1].detach(), hy.detach())
-        legends.append(f'layer {i} ({layer.__class__.__name__}) {
-                       tuple(t.shape)}')
-print()
-print()
-plt.legend(legends)
-plt.title('activation distribution')
-plt.show()
-
-
-print(f'\n{'-'*55}\nGradient values of tanh layers\n{'-'*55}\n')
-
-legends = []
-for i, layer in enumerate(layers[:-1]):
-    if isinstance(layer, Tanh):
-        t = layer.out.grad.cpu()
-        print('layer %d (%s): mean %+f, std %e' %
-              (i, layer.__class__.__name__, t.mean(), t.std()))
-        hy, hx = torch.histogram(t, density=True)
-        plt.plot(hx[:-1].detach(), hy.detach())
-        legends.append(f'layer {i} ({layer.__class__.__name__}) {
-                       tuple(t.shape)}')
-print()
-print()
-plt.legend(legends)
-plt.title('Gradient distribution')
-plt.show()
+# BOMBACLAT I'VE GOT NO CLUE WHAT THIS ACTUALLY MEANS
 
 
-print(f'\n{'-'*55}\nGradient values of linear layers\n{'-'*55}\n')
+def tanh_grads():
+    print(f'\n{'-'*55}\nGradient values of tanh layers\n{'-'*55}\n')
 
-legends = []
-for i, p in enumerate(parameters):
-    t = p.grad.cpu()
-    if p.ndim == 2:
-        print(f'{p.shape=}')
-        print('weight %10s | mean %+f | std %e | grad:data ratio %e' %
-              (tuple(p.shape), t.mean(), t.std(), t.std() / p.std()))
-        print()
-        hy, hx = torch.histogram(t, density=True)
-        plt.plot(hx[:-1].detach(), hy.detach())
-        legends.append(f'{i} {tuple(p.shape)}')
-print()
-print()
-plt.legend(legends)
-plt.title('Weights gradient distribution')
-plt.show()
+    legends = []
+    for i, layer in enumerate(layers):
+        if isinstance(layer, Tanh):
+            t = layer.out.grad.cpu().detach()
+            print(f'{layer.__class__.__name__} std {
+                  t.std().item():.3f} mean {t.mean().item():.3f}')
+            hy, hx = torch.histogram(t, density=True)
+            plt.plot(hx[:-1], hy)
+
+            legends.append(f'layer {i} {layer.__class__.__name__} {
+                           tuple(t.shape)}')
+
+    plt.legend(legends)
+    plt.title("Tanh gradients distribution")
+    plt.show()
+
+# tanh_grad_distribution()
+
+
+# 3. Die waardes van n batch se gradients by die linear layers
+# Mean, std, grad:data ratio
+def weight_grads():
+    print(f'\n{'-'*55}\nGradient values of weights in linear layers\n{'-'*55}\n')
+    legends = []
+    for i, p in enumerate(parameters):
+        if p.ndim == 2:
+            t = p.grad.cpu().detach()
+            print(f'Shape {tuple(p.shape)}, mean {t.mean():.3f} std {t.std():.3f}',
+                f'grad:data mean {(t.mean() / p.mean()):.3e} grad:data {(t.std() / p.std()):.3e}')
+            hy, hx = torch.histogram(t, density=True)
+            plt.plot(hx[:-1], hy)
+            legends.append(f'{i} {tuple(p.shape)}')
+    plt.legend(legends)
+    plt.title("Weight gradients of linear layers")
+    plt.show()
+
+# weight_grads()
+exit()
 
 
 print(f'\n{'-'*55}\nUpdate rate\n{'-'*55}\n')
