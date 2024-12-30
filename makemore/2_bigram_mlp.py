@@ -38,7 +38,6 @@ ys = torch.tensor(ys)
 xenc = F.one_hot(xs, num_classes=27).float()
 W = torch.randn((27, 27), requires_grad=True)
 
-
 epochs = 100
 lastloss = 0
 for epoch in range(epochs):

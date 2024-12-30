@@ -31,6 +31,7 @@ def build_dataset(words):
             # print(''.join(itos[con] for con in context), '-->', c )
             context = context[1:] + [stoi[c]]
 
+
     X, Y = torch.tensor(X), torch.tensor(Y)
     return X, Y
 
@@ -228,8 +229,6 @@ def tanh_values():
     plt.title('Tanh data distribution')
     plt.show()
 
-# BOMBACLAT I'VE GOT NO CLUE WHAT THIS ACTUALLY MEANS
-
 
 def tanh_grads():
     print(f'\n{'-'*55}\nGradient values of tanh layers\n{'-'*55}\n')
@@ -251,10 +250,6 @@ def tanh_grads():
     plt.show()
 
 # tanh_grad_distribution()
-
-
-# 3. Die waardes van n batch se gradients by die linear layers
-# Mean, std, grad:data ratio
 def weight_grads():
     print(f'\n{'-'*55}\nGradient values of weights in linear layers\n{'-'*55}\n')
     legends = []

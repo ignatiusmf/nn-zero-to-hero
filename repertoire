@@ -1,5 +1,16 @@
-1. Implement pytorch API for backpropogation.
-2. Train a neural network using pytorch without utilizing advanced API.
-3. Implement pytorch API for advanced neural network creation.
-4. Create diagnostic tools to examine the state of a neural network.
+
+
+
+
+1. Autograd implementation
+2. Makemore: Statistical
+3. Makemore: Single layer net 
+    - Using tensors, effectively re-creating statistical model
+4. Makemore: Multi layer net 
+    - Manual tensor operations, manual softmax and cross entropy
+5. Makemore: Multi layer + pytorch tools
+    - Mirroring pytorch implementation of layer modules
+    - Pytorch tools for softmax and cross entropy 
+
+6. Create diagnostic tools (matplot) to examine the state of a neural network.
 
